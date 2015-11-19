@@ -5,8 +5,10 @@
 package stun_test
 
 import (
-	"net"
-	"reflect"
+	"crypto/rand"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"testing"
 
 	"github.com/mikioh/stun"
@@ -36,86 +38,113 @@ func TestTypeClassMethod(t *testing.T) {
 		}
 		m := tt.in.Method()
 		if m != tt.m {
-			t.Errorf("#%d: got %v; want %#x", i, m, uint16(tt.m))
+			t.Errorf("#%d: got %v; want %v", i, m, tt.m)
 		}
 		out := stun.MessageType(c, m)
 		if out != tt.in {
-			t.Errorf("#%d: got %#x; want %#x", i, uint16(out), uint16(tt.in))
+			t.Errorf("#%d: got %v; want %v", i, out, tt.in)
 		}
 	}
 }
 
-var marshalAndParseMessageTests = []struct {
-	wire []byte
-	m    *stun.Message
-}{
-	// XOR-MAPPED-ADDRESS
+func TestParseFuzzHeader(t *testing.T) {
+	defer func() {
+		if p := recover(); p != nil {
+			t.Fatalf("panicked: %v", p)
+		}
+	}()
+
+	for i := 0; i < 1500; i++ {
+		b := make([]byte, i)
+		if _, err := io.ReadFull(rand.Reader, b); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := stun.ParseHeader(b); err != nil {
+			fmt.Fprintf(ioutil.Discard, "%v", err)
+		}
+	}
+}
+
+func TestParseFuzzMessage(t *testing.T) {
+	defer func() {
+		if p := recover(); p != nil {
+			t.Fatalf("panicked: %v", p)
+		}
+	}()
+
+	for i := 0; i < 1500; i++ {
+		b := make([]byte, i)
+		if _, err := io.ReadFull(rand.Reader, b); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := stun.ParseMessage(b, nil); err != nil {
+			fmt.Fprintf(ioutil.Discard, "%v", err)
+		}
+	}
+}
+
+var channelDataTests = []rfc5769Test{
 	{
-		wire: []byte{
-			0x00, 0x01, 0x00, 0x08,
-			0x21, 0x12, 0xa4, 0x42,
-			0x37, 0xc8, 0xa9, 0x9f,
-			0x35, 0x5b, 0xa9, 0x70,
-			0x00, 0x68, 0xbd, 0x79,
-			0x80, 0x28, 0x00, 0x04,
-			0x9c, 0x58, 0x84, 0xf4,
+		raw: &stun.ChannelData{
+			Number: 0x4000,
+			Data:   []byte("\xb7\xe7\xa7\x01\xbc\x34\xd6\x86\xfa\x87\xff"),
 		},
-		m: &stun.Message{
-			Type:   stun.MessageType(stun.ClassRequest, stun.MethodBinding),
-			Cookie: stun.MagicCookie,
-			TID:    []byte{0x37, 0xc8, 0xa9, 0x9f, 0x35, 0x5b, 0xa9, 0x70, 0x00, 0x68, 0xbd, 0x79},
-			Attrs: []stun.Attribute{
-				&stun.Fingerprint{
-					Checksum: 0x9c5884f4,
-				},
-			},
-		},
+		wire: "\x40\x00\x00\x0b\xb7\xe7\xa7\x01\xbc\x34\xd6\x86\xfa\x87\xff\x00",
 	},
 	{
-		wire: []byte{
-			0x01, 0x01, 0x00, 0xc,
-			0x21, 0x12, 0xa4, 0x42,
-			0x83, 0xc7, 0xc2, 0xbc,
-			0x8a, 0xc4, 0xb6, 0x9d,
-			0x7f, 0x2b, 0x5e, 0xde,
-			0x00, 0x20, 0x00, 0x08,
-			0x00, 0x01, 0xe6, 0x68,
-			0xe1, 0xba, 0xa4, 0x43,
+		raw: &stun.ChannelData{
+			Number: 0x7fff,
+			Data:   []byte("\xff"), // TURN over UDP is not required 4-byte alignment
 		},
-		m: &stun.Message{
-			Type:   stun.MessageType(stun.ClassSuccessResponse, stun.MethodBinding),
-			Cookie: stun.MagicCookie,
-			TID:    []byte{0x83, 0xc7, 0xc2, 0xbc, 0x8a, 0xc4, 0xb6, 0x9d, 0x7f, 0x2b, 0x5e, 0xde},
-			Attrs: []stun.Attribute{
-				&stun.XORMappedAddr{
-					Family: 1,
-					Port:   51066,
-					IP:     net.IPv4(192, 168, 0, 1),
-				},
-			},
-		},
+		wire: "\x7f\xff\x00\x01\xff",
 	},
 }
 
 func TestMarshalAndParseMessage(t *testing.T) {
-	for i, tt := range marshalAndParseMessageTests {
-		b, err := tt.m.Marshal()
+	var wire []byte
+	tests := append(rfc5769Tests, channelDataTests...)
+	for i, tt := range tests {
+		b := make([]byte, tt.raw.Len())
+		n, err := tt.raw.Marshal(b, tt.hash)
 		if err != nil {
-			t.Errorf("#%d: %v", i, err)
-			continue
+			t.Fatalf("#%d: %v", i, err)
 		}
-		if !reflect.DeepEqual(b, tt.wire) {
-			t.Errorf("#%d: got %#v; want %#v", i, b, tt.wire)
-			continue
+		if n%4 != 0 {
+			t.Fatalf("#%d: not multiple of 4 bytes: %d", i, n)
 		}
-		m, err := stun.ParseMessage(tt.wire)
+		wire = append(wire, b...)
+	}
+	for i, tt := range tests {
+		if _, _, err := stun.ParseHeader(wire); err != nil {
+			t.Fatalf("#%d: %v", i, err)
+		}
+		n, m, err := stun.ParseMessage(wire, tt.hash)
 		if err != nil {
-			t.Errorf("#%d: %v", i, err)
-			continue
+			t.Fatalf("#%d: %v", i, err)
 		}
-		if !reflect.DeepEqual(m, tt.m) {
-			t.Errorf("#%d: got %#v; want %#v", i, m, tt.m)
-			continue
+		switch m := m.(type) {
+		case *stun.Control:
+			if n%4 != 0 {
+				t.Fatalf("#%d: not multiple of 4 bytes: %d", i, n)
+			}
+			if n != len(tt.wire) {
+				t.Fatalf("#%d: got %d; want %d", i, n, len(tt.wire))
+			}
+		case *stun.ChannelData:
+			if len(tt.wire)%4 == 0 {
+				if n%4 != 0 {
+					t.Fatalf("#%d: not multiple of 4 bytes: %d", i, n)
+				}
+				if n != len(tt.wire) {
+					t.Fatalf("#%d: got %d; want %d", i, n, len(tt.wire))
+				}
+			}
+			if len(m.Data) != len(tt.raw.(*stun.ChannelData).Data) {
+				t.Fatalf("#%d: got %d; want %d", i, len(m.Data), len(tt.raw.(*stun.ChannelData).Data))
+			}
+		default:
+			t.Fatalf("#%d: unknown type: %T", i, m)
 		}
+		wire = wire[n:]
 	}
 }

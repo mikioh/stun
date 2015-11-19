@@ -14,25 +14,11 @@ import (
 	"github.com/mikioh/stun"
 )
 
-func Example_clientUDP() {
-	var err error
-	var dst net.Addr
-	for _, server := range []string{
-		"stun.l.google.com:19302",
-		"stun1.l.google.com:19302",
-		"stun2.l.google.com:19302",
-		"stun3.l.google.com:19302",
-		"stun4.l.google.com:19302",
-	} {
-		dst, err = net.ResolveUDPAddr("udp", server)
-		if err != nil {
-			continue
-		}
+func ExampleControl_clientUDP() {
+	dst, err := net.ResolveUDPAddr("udp", "stun.l.google.com:19302")
+	if err != nil {
+		log.Fatal(err)
 	}
-	if dst == nil {
-		log.Fatal("STUN server not found")
-	}
-
 	c, err := net.ListenPacket("udp", ":0")
 	if err != nil {
 		log.Fatal(err)
@@ -43,49 +29,46 @@ func Example_clientUDP() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wm := stun.Message{
-		Type:  stun.MessageType(stun.ClassRequest, stun.MethodBinding),
-		TID:   tid,
-		Attrs: []stun.Attribute{&stun.Fingerprint{}},
+	wm := stun.Control{
+		Type: stun.MessageType(stun.ClassRequest, stun.MethodBinding),
+		TID:  tid,
+		Attrs: []stun.Attribute{
+			stun.Software("github.com/mikioh/stun"),
+			stun.ICEControlling(1),
+			&stun.UseCandidate{},
+			stun.Priority(1),
+			stun.Fingerprint(0),
+		},
 	}
-	wb, err := wm.Marshal()
+	wb := make([]byte, wm.Len())
+	n, err := wm.Marshal(wb, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if _, err := c.WriteTo(wb, dst); err != nil {
+	if _, err := c.WriteTo(wb[:n], dst); err != nil {
 		log.Fatal(err)
 	}
 
 	rb := make([]byte, 1500)
-	if err := c.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+	if err := c.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
 		log.Fatal(err)
 	}
-	n, _, err := c.ReadFrom(rb)
+	n, _, err = c.ReadFrom(rb)
 	if err != nil {
 		log.Fatal(err)
 	}
-	rm, err := stun.ParseMessage(rb[:n])
+	_, rm, err := stun.ParseMessage(rb[:n], nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(rm.Type.Class())
-	fmt.Println(rm.Type.Method())
-	if !bytes.Equal(rm.Cookie, stun.MagicCookie) {
-		log.Fatalf("got %#v; want %#v", rm.Cookie, stun.MagicCookie)
+	fmt.Println(rm.(*stun.Control).Type.Class())
+	fmt.Println(rm.(*stun.Control).Type.Method())
+	if !bytes.Equal(rm.(*stun.Control).Cookie, stun.MagicCookie) {
+		log.Fatalf("got %#v; want %#v", rm.(*stun.Control).Cookie, stun.MagicCookie)
 	}
-	if !bytes.Equal(rm.TID, wm.TID) {
-		log.Fatalf("got %#v; want %#v", rm.TID, wm.TID)
-	}
-	var addrAttrs []stun.Attribute
-	for _, attr := range rm.Attrs {
-		switch attr.(type) {
-		case *stun.MappedAddr, *stun.XORMappedAddr:
-			addrAttrs = append(addrAttrs, attr)
-		}
-	}
-	if len(addrAttrs) == 0 {
-		log.Fatal("got no binding attribute")
+	if !bytes.Equal(rm.(*stun.Control).TID, wm.TID) {
+		log.Fatalf("got %#v; want %#v", rm.(*stun.Control).TID, wm.TID)
 	}
 	// Output:
 	// success response

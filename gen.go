@@ -100,10 +100,9 @@ func parseSTUNParameters(w io.Writer, r io.Reader) error {
 			continue
 		}
 		sr := strings.NewReplacer(
-			"CreatePermission", "Create Permission",
-			"ChannelBind", "Channel Bind",
-			"ConnectionBind", "Connection Bind",
-			"ConnectionAttempt", "Connection Attempt",
+			"Create", "Create ",
+			"Channel", "Channel ",
+			"Connection", "Connection ",
 		)
 		fmt.Fprintf(w, "var methods = map[Method]string{\n")
 		for _, r := range csp.Records {

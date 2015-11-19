@@ -4,8 +4,20 @@
 
 /*
 Package stun provides basic functions for the manipulation of messages
-used in the Session Traversal Utilities for NAT (STUN) protocol.
+used in the Session Traversal Utilities for NAT (STUN), Traversal
+Using Relays around NAT (TURN) and Interactive Connectivity
+Establishment (ICE) protocols.
 
 STUN is defined in RFC 5389.
+TURN is defined in RFC 5766.
+Traversal Using Relays around NAT (TURN) Extensions for TCP Allocations is defined in RFC 6062.
+Traversal Using Relays around NAT (TURN) Extension for IPv6 is defined in RFC 6156.
+ICE is defined in RFC 5245.
+Explicit Congestion Notification (ECN) for RTP over UDP is defined in RFC 6679.
+
+Also see https://tools.ietf.org/html/draft-ietf-tram-turnbis.
+
+Note: THIRD-PARTY-AUTHORIZATION and ACCESS-TOKEN attributes defined in
+RFC 7635 are not implemented yet.
 */
 package stun

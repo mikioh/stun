@@ -5,20 +5,47 @@
 package stun
 
 import (
+	"bytes"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
+	"fmt"
+	"hash"
+	"hash/crc32"
 	"io"
 )
 
 var (
-	errMessageTooShort   = errors.New("message too short")
-	errAttributeTooShort = errors.New("attribute too short")
-	errBufferTooShort    = errors.New("buffer too short")
-	errInvalidMessage    = errors.New("invalid message")
-	errInvalidAttribute  = errors.New("invalid attribute")
+	errMessageTooShort          = errors.New("message too short")
+	errAttributeTooShort        = errors.New("attribute too short")
+	errBufferTooShort           = errors.New("buffer too short")
+	errInvalidMessage           = errors.New("invalid message")
+	errInvalidHeader            = errors.New("invalid header")
+	errInvalidAttribute         = errors.New("invalid attribute")
+	errHMACFingerprintMismatch  = errors.New("HMAC fingerprint mismatch")
+	errCRC32FingerprintMismatch = errors.New("CRC-32 fingerprint mismatch")
 )
 
-const HeaderLen = 20 // STUN message header length
+// A MessageError represents a STUN message error.
+type MessageError struct {
+	// Type is the STUN message type.
+	Type Type
+
+	// Err is the error that occurred.
+	Err error
+}
+
+func (me *MessageError) Error() string {
+	if me == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("%s: %s", me.Type.String(), me.Err.Error())
+}
+
+const (
+	controlHeaderLen     = 20
+	channelDataHeaderLen = 4
+)
 
 // A Class represents a STUN message class.
 type Class int
@@ -40,7 +67,7 @@ var classes = map[Class]string{
 func (c Class) String() string {
 	s, ok := classes[c]
 	if !ok {
-		return "<nil>"
+		return fmt.Sprintf("%#x", byte(c&0x3))
 	}
 	return s
 }
@@ -51,22 +78,35 @@ type Method int
 func (m Method) String() string {
 	s, ok := methods[m]
 	if !ok {
-		return "<nil>"
+		return fmt.Sprintf("%#03x", uint16(m))
 	}
 	return s
 }
 
-// A Type reprensents a STUN message type.
+// A Type reprensents a STUN message type or channel number.
 type Type int
 
-// Class returns a message class of the type.
+// Class returns the message class of type.
 func (t Type) Class() Class {
-	return Class(t&0x0100>>7 | t&0x10>>4)
+	if 0x0000 <= t && t <= 0x3fff {
+		return Class(t&0x0100>>7 | t&0x10>>4)
+	}
+	return Class(t)
 }
 
-// Method returns a message type of the type.
+// Method returns the message method of type.
 func (t Type) Method() Method {
-	return Method(t&0x3e00>>2 | t&0xe0>>1 | t&0x0f)
+	if 0x0000 <= t && t <= 0x3fff {
+		return Method(t&0x3e00>>2 | t&0xe0>>1 | t&0x0f)
+	}
+	return Method(t)
+}
+
+func (t Type) String() string {
+	if 0x0000 <= t && t <= 0x3fff {
+		return fmt.Sprintf("%s for %s", t.Class().String(), t.Method().String())
+	}
+	return fmt.Sprintf("%#04x", uint16(t))
 }
 
 // MessageType returns a message type consisting of c and m.
@@ -78,31 +118,58 @@ func MessageType(c Class, m Method) Type {
 var MagicCookie = []byte{0x21, 0x12, 0xa4, 0x42}
 
 // A Message represents a STUN message.
-type Message struct {
+type Message interface {
+	// Len returns the length of STUN message including the
+	// message header and padding bytes.
+	Len() int
+
+	// Marshal writes the binary encoding of STUN message to b.
+	// It returns the number of bytes marshaled.
+	// H must be the HMAC-SHA1 when in use of STUN
+	// MESSAGE-INTEGRITY attribute.
+	Marshal(b []byte, h hash.Hash) (int, error)
+}
+
+// A Control represents a STUN control message.
+type Control struct {
 	// Type specifies the message type.
 	Type Type
 
 	// Cookie specifies the 32-bit magic cookie.
-	// If Cookie is nil, Marshal method sets an appropriate value.
+	// If Cookie is nil, Marshal method of Message interface sets
+	// an appropriate value.
 	Cookie []byte
 
 	// TID specifies the 96-bit transaction identifier.
-	// If TID is nil, Marshal method sets an appropriate value.
+	// If TID is nil, Marshal method of Message interface sets an
+	// appropriate value.
 	TID []byte
 
-	// Attrs specifies the list of attributes.
+	// Attrs specifies the list of STUN attributes.
 	Attrs []Attribute
 }
 
-// Marshal returns the binary encoding of the STUN message m.
-func (m *Message) Marshal() ([]byte, error) {
+// Len implements the Len method of Message interface.
+func (m *Control) Len() int {
+	l := controlHeaderLen
+	for _, attr := range m.Attrs {
+		l += roundup(4 + attr.Len())
+	}
+	return l
+}
+
+// Marshal implements the Marshal method of Message interface.
+func (m *Control) Marshal(b []byte, h hash.Hash) (int, error) {
 	l := 0
 	for _, attr := range m.Attrs {
 		l += roundup(4 + attr.Len())
 	}
-	b := make([]byte, HeaderLen+l)
-	b[0], b[1] = byte(m.Type>>8), byte(m.Type)
-	b[2], b[3] = byte(l>>8), byte(l)
+	ll := controlHeaderLen + l
+	if len(b) < ll {
+		return 0, &MessageError{Type: m.Type, Err: errBufferTooShort}
+	}
+	binary.BigEndian.PutUint16(b[:2], uint16(m.Type))
+	binary.BigEndian.PutUint16(b[2:4], uint16(l))
 	if len(m.Cookie) < 4 {
 		copy(b[4:8], MagicCookie)
 	} else {
@@ -110,37 +177,152 @@ func (m *Message) Marshal() ([]byte, error) {
 	}
 	if len(m.TID) < 12 {
 		if _, err := io.ReadFull(rand.Reader, b[8:20]); err != nil {
-			return nil, err
+			return 0, &MessageError{Type: m.Type, Err: err}
 		}
 	} else {
 		copy(b[8:20], m.TID)
 	}
-	if err := marshalAttributes(b, m); err != nil {
-		return nil, err
+	mi, hmacOff, fp, crc32Off, err := marshalAttrs(b[:ll], m)
+	if err != nil {
+		return 0, &MessageError{Type: m.Type, Err: err}
 	}
-	return b, nil
+	if err := marshalIntegrity(b[:ll], h, mi, hmacOff, fp, crc32Off); err != nil {
+		return 0, &MessageError{Type: m.Type, Err: err}
+	}
+	return ll, nil
+}
+
+// A ChannelData represents a STUN channel data message.
+type ChannelData struct {
+	// Number specifies the channel number.
+	Number Type
+
+	// Data specifies the channel data.
+	// It just refers to the underlying buffer when the returned
+	// value from ParseMessage.
+	Data []byte
+}
+
+// Len implements the Len method of Message interface.
+func (m *ChannelData) Len() int {
+	return channelDataHeaderLen + roundup(len(m.Data))
+}
+
+// Marshal implements the Marshal method of Message interface.
+func (m *ChannelData) Marshal(b []byte, _ hash.Hash) (int, error) {
+	l := len(m.Data)
+	ll := channelDataHeaderLen + roundup(l)
+	if len(b) < ll {
+		return 0, &MessageError{Type: m.Number, Err: errBufferTooShort}
+	}
+	binary.BigEndian.PutUint16(b[:2], uint16(m.Number))
+	binary.BigEndian.PutUint16(b[2:4], uint16(l))
+	copy(b[channelDataHeaderLen:], m.Data)
+	return ll, nil
+}
+
+// ParseHeader parses b as a STUN message header.
+// It returns the message type or channel number, and the message
+// length including the message header but not including padding
+// bytes.
+func ParseHeader(b []byte) (Type, int, error) {
+	if len(b) < channelDataHeaderLen {
+		return 0, 0, &MessageError{Err: errMessageTooShort}
+	}
+	t := Type(binary.BigEndian.Uint16(b[:2]))
+	l := int(binary.BigEndian.Uint16(b[2:4]))
+	if 0x4000 <= t && t <= 0x7fff {
+		return t, channelDataHeaderLen + l, nil
+	}
+	return t, controlHeaderLen + l, nil
 }
 
 // ParseMessage parses b as a STUN message.
-func ParseMessage(b []byte) (*Message, error) {
-	if len(b) < HeaderLen {
-		return nil, errMessageTooShort
+// It returns the number of bytes parsed and message.
+// H must be the HMAC-SHA1 when in use of STUN MESSAGE-INTEGRITY
+// attribute.
+// It assumes that b contains padding bytes even if a channel data
+// message and sent over UDP.
+func ParseMessage(b []byte, h hash.Hash) (int, Message, error) {
+	if len(b) < channelDataHeaderLen {
+		return 0, nil, &MessageError{Err: errMessageTooShort}
 	}
-	l := int(b[2])<<8 | int(b[3])
-	if len(b) < HeaderLen+roundup(l) {
-		return nil, errMessageTooShort
+	t := Type(binary.BigEndian.Uint16(b[:2]))
+	l := int(binary.BigEndian.Uint16(b[2:4]))
+	if 0x4000 <= t && t <= 0x7fff {
+		ll := channelDataHeaderLen + roundup(l)
+		if len(b) < ll {
+			return 0, nil, &MessageError{Type: t, Err: errMessageTooShort}
+		}
+		return ll, &ChannelData{Number: t, Data: b[channelDataHeaderLen : channelDataHeaderLen+l]}, nil
 	}
-	m := Message{
-		Type:   Type(b[0])<<8 | Type(b[1]),
-		Cookie: make([]byte, 4),
-		TID:    make([]byte, 12),
+	if b[0]&0xc0 != 0 {
+		return 0, nil, &MessageError{Type: t, Err: errInvalidHeader}
 	}
-	copy(m.Cookie, b[4:8])
-	copy(m.TID, b[8:HeaderLen])
-	var err error
-	m.Attrs, err = parseAttributes(m.TID, b[HeaderLen:])
+	ll := controlHeaderLen + l
+	if len(b) < ll {
+		return 0, nil, &MessageError{Type: t, Err: errBufferTooShort}
+	}
+	cookieTID := make([]byte, 16)
+	copy(cookieTID[:4], b[4:8])
+	copy(cookieTID[4:16], b[8:controlHeaderLen])
+	m := Control{Type: t, Cookie: cookieTID[:4], TID: cookieTID[4:16]}
+	var (
+		err               error
+		mi                MessageIntegrity
+		fp                Fingerprint
+		hmacOff, crc32Off int
+	)
+	m.Attrs, mi, hmacOff, fp, crc32Off, err = parseAttrs(b[controlHeaderLen:ll], m.TID)
 	if err != nil {
-		return nil, err
+		return 0, nil, &MessageError{Type: t, Err: err}
 	}
-	return &m, nil
+	if err := validateIntegrity(b[:ll], h, mi, hmacOff, fp, crc32Off); err != nil {
+		return 0, nil, &MessageError{Type: t, Err: err}
+	}
+	return ll, &m, nil
+}
+
+func marshalIntegrity(b []byte, h hash.Hash, mi MessageIntegrity, hmacOff int, fp Fingerprint, crc32Off int) error {
+	if h != nil && mi != nil {
+		var tmp [2]byte
+		copy(tmp[:], b[2:4])
+		l := hmacOff - controlHeaderLen + roundup(4+mi.Len())
+		binary.BigEndian.PutUint16(b[2:4], uint16(l))
+		h.Reset()
+		h.Write(b[:hmacOff])
+		copy(b[hmacOff+4:], h.Sum(nil))
+		copy(b[2:4], tmp[:])
+	}
+	if crc32Off > 0 {
+		if fp == 0 {
+			fp = Fingerprint(crc32.ChecksumIEEE(b[:crc32Off]) ^ crc32XOR)
+		}
+		if err := marshalUintAttr(b[crc32Off:], attrFINGERPRINT, fp, nil); err != nil {
+			return &AttributeError{Type: attrFINGERPRINT, Err: err}
+		}
+	}
+	return nil
+}
+
+func validateIntegrity(b []byte, h hash.Hash, mi MessageIntegrity, hmacOff int, fp Fingerprint, crc32Off int) error {
+	if h != nil && mi != nil {
+		var tmp [2]byte
+		copy(tmp[:], b[2:4])
+		l := hmacOff + roundup(4+mi.Len())
+		binary.BigEndian.PutUint16(b[2:4], uint16(l))
+		h.Reset()
+		h.Write(b[:controlHeaderLen+hmacOff])
+		mac := h.Sum(nil)
+		copy(b[2:4], tmp[:])
+		if !bytes.Equal(mac, mi) {
+			return &AttributeError{Type: attrMESSAGE_INTEGRITY, Err: errHMACFingerprintMismatch}
+		}
+	}
+	if crc32Off > 0 {
+		if crc := Fingerprint(crc32.ChecksumIEEE(b[:controlHeaderLen+crc32Off]) ^ crc32XOR); crc != fp {
+			return &AttributeError{Type: attrFINGERPRINT, Err: errCRC32FingerprintMismatch}
+		}
+	}
+	return nil
 }
