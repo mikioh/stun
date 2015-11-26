@@ -8,7 +8,7 @@ import "encoding/binary"
 
 // An ErrorCode represents a STUN ERROR-CODE attribute.
 type ErrorCode struct {
-	Code   int    // code
+	Code   int    // code consist of class and number
 	Reason string // reason
 }
 

@@ -18,6 +18,7 @@ Explicit Congestion Notification (ECN) for RTP over UDP is defined in RFC 6679.
 Also see https://tools.ietf.org/html/draft-ietf-tram-turnbis.
 
 Note: THIRD-PARTY-AUTHORIZATION and ACCESS-TOKEN attributes defined in
-RFC 7635 are not implemented yet.
+RFC 7635 are not implemented yet and you can use DefaultAttr for those
+attributes.
 */
 package stun
