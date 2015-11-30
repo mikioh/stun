@@ -312,6 +312,19 @@ var marshalAndParseAttributeTests = []struct {
 		}),
 		attr: &ECNCheck{ECF: 0x02, V: true},
 	},
+
+	// ORIGIN
+	{
+		wire: attrWireFormat(attrORIGIN, []byte{0, 21,
+			'h', 't', 't', 'p',
+			':', '/', '/', 'l',
+			'o', 'c', 'a', 'l',
+			'h', 'o', 's', 't',
+			':', '8', '0', '8',
+			'0', 0x00, 0x00, 0x00,
+		}),
+		attr: Origin("http://localhost:8080"),
+	},
 }
 
 func TestMarshalAndParseAttribute(t *testing.T) {

@@ -121,6 +121,8 @@ func attrTypeMarshaler(attr Attribute) (int, func([]byte, int, Attribute, []byte
 		return attrICE_CONTROLLING, marshalUint64Attr
 	case *ECNCheck:
 		return attrECN_CHECK_STUN, marshalECNCheckAttr
+	case Origin:
+		return attrORIGIN, marshalStringAttr
 	case *DefaultAttr:
 		return attr.Type, marshalDefaultAttr
 	default:
@@ -147,6 +149,8 @@ func marshalStringAttr(b []byte, t int, attr Attribute, _ []byte) error {
 		copy(b[4:], attr.(Nonce))
 	case attrSOFTWARE:
 		copy(b[4:], attr.(Software))
+	case attrORIGIN:
+		copy(b[4:], attr.(Origin))
 	default:
 		return errInvalidAttribute
 	}
@@ -313,6 +317,7 @@ var parsers = map[int]parser{
 	attrICE_CONTROLLED:           {parseUint64Attr, 8, 8},
 	attrICE_CONTROLLING:          {parseUint64Attr, 8, 8},
 	attrECN_CHECK_STUN:           {parseECNCheckAttr, 4, 4},
+	attrORIGIN:                   {parseStringAttr, 0, 65535},
 }
 
 func parseStringAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, error) {
@@ -329,6 +334,8 @@ func parseStringAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, err
 		return Realm(v), nil
 	case attrNONCE:
 		return Nonce(v), nil
+	case attrORIGIN:
+		return Origin(v), nil
 	default:
 		return nil, errInvalidAttribute
 	}
