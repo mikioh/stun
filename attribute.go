@@ -73,8 +73,8 @@ func attrTypeMarshaler(attr Attribute) (int, func([]byte, int, Attribute, []byte
 		return attrUSERNAME, marshalStringAttr
 	case MessageIntegrity:
 		return attrMESSAGE_INTEGRITY, marshalBytesAttr
-	case *ErrorCode:
-		return attrERROR_CODE, marshalErrorCodeAttr
+	case *Error:
+		return attrERROR_CODE, marshalErrorAttr
 	case UnknownAttrs:
 		return attrUNKNOWN_ATTRIBUTES, marshalUnknownAttrs
 	case *ChannelNumber:
@@ -293,7 +293,7 @@ type parser struct {
 var parsers = map[int]parser{
 	attrUSERNAME:                 {parseStringAttr, 0, 512},
 	attrMESSAGE_INTEGRITY:        {parseBytesAttr, 20, 20},
-	attrERROR_CODE:               {parseErrorCodeAttr, 4, 4 + 763},
+	attrERROR_CODE:               {parseErrorAttr, 4, 4 + 763},
 	attrUNKNOWN_ATTRIBUTES:       {parseUnknownAttrs, 0, 65535},
 	attrCHANNEL_NUMBER:           {parseChannelNumberAttr, 4, 4},
 	attrLIFETIME:                 {parseDurationAttr, 4, 4},

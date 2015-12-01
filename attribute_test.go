@@ -99,7 +99,7 @@ var marshalAndParseAttributeTests = []struct {
 			'e', ' ', 'N', 'o',
 			'n', 'c', 'e', 0x00,
 		}),
-		attr: &ErrorCode{
+		attr: &Error{
 			Code:   StatusStaleNonce,
 			Reason: "Stale Nonce",
 		},

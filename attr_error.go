@@ -6,53 +6,53 @@ package stun
 
 import "encoding/binary"
 
-// An ErrorCode represents a STUN ERROR-CODE attribute.
-type ErrorCode struct {
-	Code   int    // code consist of class and number
+// An Error represents a STUN ERROR-CODE attribute.
+type Error struct {
+	Code   int    // code consists of class and number
 	Reason string // reason
 }
 
 // Len implements the Len method of Attribute interface.
-func (ec *ErrorCode) Len() int {
-	if ec == nil {
+func (e *Error) Len() int {
+	if e == nil {
 		return 0
 	}
-	return 4 + len(ec.Reason)
+	return 4 + len(e.Reason)
 }
 
 // Class returns the error class.
-func (ec *ErrorCode) Class() int {
-	if ec == nil {
+func (e *Error) Class() int {
+	if e == nil {
 		return 0
 	}
-	return int(ec.Code / 100 & 0x07)
+	return int(e.Code / 100 & 0x07)
 }
 
 // Number returns the error number.
-func (ec *ErrorCode) Number() int {
-	if ec == nil {
+func (e *Error) Number() int {
+	if e == nil {
 		return 0
 	}
-	return int(ec.Code % 100)
+	return int(e.Code % 100)
 }
 
-func marshalErrorCodeAttr(b []byte, t int, attr Attribute, _ []byte) error {
+func marshalErrorAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+attr.Len() {
 		return errBufferTooShort
 	}
 	marshalAttrTypeLen(b, t, attr.Len())
-	b[6], b[7] = byte(attr.(*ErrorCode).Class()), byte(attr.(*ErrorCode).Number())
-	copy(b[8:], attr.(*ErrorCode).Reason)
+	b[6], b[7] = byte(attr.(*Error).Class()), byte(attr.(*Error).Number())
+	copy(b[8:], attr.(*Error).Reason)
 	return nil
 }
 
-func parseErrorCodeAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
+func parseErrorAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
 		return nil, errAttributeTooShort
 	}
-	ec := ErrorCode{Code: int(b[2]&0x07)*100 + int(b[3])}
-	ec.Reason = string(b[4:l])
-	return &ec, nil
+	e := Error{Code: int(b[2]&0x07)*100 + int(b[3])}
+	e.Reason = string(b[4:l])
+	return &e, nil
 }
 
 // An UnknownAttrs represents a STUN UNKNOWN-ATTRIBUTES attribute.
