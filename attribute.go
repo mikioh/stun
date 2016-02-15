@@ -34,37 +34,37 @@ type Attribute interface {
 	Len() int
 }
 
-func marshalAttrs(b []byte, m *Control) (MessageIntegrity, int, Fingerprint, int, error) {
+type fingerprint struct {
+	attr Attribute // fingerprint attribute
+	off  int       // offset in a message
+}
+
+func marshalAttrs(b []byte, m *Control) ([]fingerprint, error) {
 	b = b[controlHeaderLen:]
 	off := controlHeaderLen
-	var (
-		mi                MessageIntegrity
-		fp                Fingerprint
-		hmacOff, crc32Off int = -1, -1
-	)
+	var fps [3]fingerprint
 	for _, attr := range m.Attrs {
 		t, fn := attrTypeMarshaler(attr)
 		switch t {
 		case attrMESSAGE_INTEGRITY:
-			if mi == nil {
-				mi = attr.(MessageIntegrity)
-				hmacOff = off
+			if fps[0].attr == nil {
+				fps[0].attr = attr
+				fps[0].off = off
 			}
 		case attrFINGERPRINT:
-			crc32Off = off
-			fp = attr.(Fingerprint)
-			if fp == 0 {
-				continue
+			if fps[2].attr == nil {
+				fps[2].attr = attr
+				fps[2].off = off
 			}
 		}
 		if err := fn(b, t, attr, m.TID); err != nil {
-			return nil, -1, 0, -1, &AttributeError{Type: t, Err: err}
+			return nil, &AttributeError{Type: t, Err: err}
 		}
 		l := roundup(4 + attr.Len())
 		b = b[l:]
 		off += l
 	}
-	return mi, hmacOff, fp, crc32Off, nil
+	return fps[:], nil
 }
 
 func attrTypeMarshaler(attr Attribute) (int, func([]byte, int, Attribute, []byte) error) {
@@ -228,20 +228,19 @@ func marshalDurationAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	return nil
 }
 
-func parseAttrs(b, tid []byte) ([]Attribute, MessageIntegrity, int, Fingerprint, int, error) {
+func parseAttrs(b, tid []byte) ([]Attribute, []fingerprint, error) {
 	if len(b) == 0 {
-		return nil, nil, -1, 0, -1, nil
+		return nil, nil, nil
 	}
 	var (
-		attrs                  []Attribute
-		mi                     MessageIntegrity
-		fp                     Fingerprint
-		off, hmacOff, crc32Off int = 0, -1, -1
+		off   int
+		attrs []Attribute
+		fps   [3]fingerprint
 	)
 	for len(b) > 0 {
 		t, l, ll, err := parseAttrTypeLen(b)
 		if err != nil {
-			return nil, nil, -1, 0, -1, &AttributeError{Type: t, Err: err}
+			return nil, nil, &AttributeError{Type: t, Err: err}
 		}
 		var attr Attribute
 		if p, ok := parsers[t]; !ok {
@@ -250,25 +249,27 @@ func parseAttrs(b, tid []byte) ([]Attribute, MessageIntegrity, int, Fingerprint,
 			attr, err = p.fn(b[4:4+l], p.min, p.max, tid, t, l)
 		}
 		if err != nil {
-			return nil, nil, -1, 0, -1, &AttributeError{Type: t, Err: err}
+			return nil, nil, &AttributeError{Type: t, Err: err}
 		}
 		if attr != nil {
 			attrs = append(attrs, attr)
 			switch t {
 			case attrMESSAGE_INTEGRITY:
-				if mi == nil {
-					mi = attr.(MessageIntegrity)
-					hmacOff = off
+				if fps[0].attr == nil {
+					fps[0].attr = attr
+					fps[0].off = off
 				}
 			case attrFINGERPRINT:
-				crc32Off = off
-				fp = attr.(Fingerprint)
+				if fps[2].attr == nil {
+					fps[2].attr = attr
+					fps[2].off = off
+				}
 			}
 		}
 		b = b[ll:]
 		off += ll
 	}
-	return attrs, mi, hmacOff, fp, crc32Off, nil
+	return attrs, fps[:], nil
 }
 
 func parseAttrTypeLen(b []byte) (t, l, ll int, err error) {

@@ -28,7 +28,7 @@ func TestParseFuzzAttribute(t *testing.T) {
 		if _, err := io.ReadFull(rand.Reader, b); err != nil {
 			t.Fatal(err)
 		}
-		if _, _, _, _, _, err := parseAttrs(b, attrTestTID); err != nil {
+		if _, _, err := parseAttrs(b, attrTestTID); err != nil {
 			fmt.Fprintf(ioutil.Discard, "%v", err)
 		}
 	}
@@ -332,7 +332,7 @@ func TestMarshalAndParseAttribute(t *testing.T) {
 	for i, tt := range marshalAndParseAttributeTests {
 		b := make([]byte, 256)
 		m := Control{Attrs: []Attribute{tt.attr}}
-		if _, _, _, _, err := marshalAttrs(b, &m); err != nil {
+		if _, err := marshalAttrs(b, &m); err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
 		}
@@ -342,7 +342,7 @@ func TestMarshalAndParseAttribute(t *testing.T) {
 			t.Errorf("#%d: got %#v; want %#v", i, b, tt.wire)
 			continue
 		}
-		attrs, _, _, _, _, err := parseAttrs(b, attrTestTID)
+		attrs, _, err := parseAttrs(b, attrTestTID)
 		if err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
@@ -359,10 +359,10 @@ func TestMarshalAndParseAttribute(t *testing.T) {
 	}
 	b := make([]byte, l)
 	m := Control{Cookie: MagicCookie, TID: attrTestTID, Attrs: allAttrs}
-	if _, _, _, _, err := marshalAttrs(b, &m); err != nil {
+	if _, err := marshalAttrs(b, &m); err != nil {
 		t.Error(err)
 	}
-	if _, _, _, _, _, err := parseAttrs(b[controlHeaderLen:], attrTestTID); err != nil {
+	if _, _, err := parseAttrs(b[controlHeaderLen:], attrTestTID); err != nil {
 		t.Error(err)
 	}
 }
