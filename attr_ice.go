@@ -32,7 +32,7 @@ func parseUseCandidateAttr(_ []byte, _, _ int, _ []byte, _, _ int) (Attribute, e
 	return &UseCandidate{}, nil
 }
 
-// A ICEControlled represents a STUN ICE-CONTROLLED attribute.
+// An ICEControlled represents a STUN ICE-CONTROLLED attribute.
 type ICEControlled uint64
 
 // Len implements the Len method of Attribute interface.
@@ -40,7 +40,7 @@ func (_ ICEControlled) Len() int {
 	return 8
 }
 
-// A ICEControlling represents a STUN ICE-CONTROLLING attribute.
+// An ICEControlling represents a STUN ICE-CONTROLLING attribute.
 type ICEControlling uint64
 
 // Len implements the Len method of Attribute interface.
