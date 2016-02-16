@@ -282,44 +282,51 @@ func ParseMessage(b []byte, h hash.Hash) (int, Message, error) {
 }
 
 func marshalIntegrity(b []byte, h hash.Hash, fps []fingerprint) error {
-	if h != nil && fps[0].attr != nil {
-		var tmp [2]byte
-		copy(tmp[:], b[2:4])
-		l := fps[0].off - controlHeaderLen + roundup(4+fps[0].attr.Len())
-		binary.BigEndian.PutUint16(b[2:4], uint16(l))
-		h.Reset()
-		h.Write(b[:fps[0].off])
-		copy(b[fps[0].off+4:], h.Sum(nil))
-		copy(b[2:4], tmp[:])
-	}
-	if fps[2].attr != nil {
-		if fps[2].attr.(Fingerprint) == 0 {
-			fps[2].attr = Fingerprint(crc32.ChecksumIEEE(b[:fps[2].off]) ^ crc32XOR)
+	for i, fp := range fps {
+		if i < 2 && h != nil && fp.attr != nil {
+			var tmp [2]byte
+			copy(tmp[:], b[2:4])
+			l := fp.off - controlHeaderLen + roundup(4+fp.attr.Len())
+			binary.BigEndian.PutUint16(b[2:4], uint16(l))
+			h.Reset()
+			h.Write(b[:fp.off])
+			copy(b[fp.off+4:], h.Sum(nil))
+			copy(b[2:4], tmp[:])
 		}
-		if err := marshalUintAttr(b[fps[2].off:], attrFINGERPRINT, fps[2].attr, nil); err != nil {
-			return &AttributeError{Type: attrFINGERPRINT, Err: err}
+		if i == 2 && fp.attr != nil {
+			if fp.attr.(Fingerprint) == 0 {
+				fp.attr = Fingerprint(crc32.ChecksumIEEE(b[:fp.off]) ^ crc32XOR)
+			}
+			if err := marshalUintAttr(b[fp.off:], attrFINGERPRINT, fp.attr, nil); err != nil {
+				return &AttributeError{Type: attrFINGERPRINT, Err: err}
+			}
 		}
 	}
 	return nil
 }
 
 func validateIntegrity(b []byte, h hash.Hash, fps []fingerprint) error {
-	if h != nil && fps[0].attr != nil {
-		var tmp [2]byte
-		copy(tmp[:], b[2:4])
-		l := fps[0].off + roundup(4+fps[0].attr.Len())
-		binary.BigEndian.PutUint16(b[2:4], uint16(l))
-		h.Reset()
-		h.Write(b[:controlHeaderLen+fps[0].off])
-		mac := h.Sum(nil)
-		copy(b[2:4], tmp[:])
-		if !bytes.Equal(mac, fps[0].attr.(MessageIntegrity)) {
-			return &AttributeError{Type: attrMESSAGE_INTEGRITY, Err: errHMACFingerprintMismatch}
+	for i, fp := range fps {
+		if i < 2 && h != nil && fp.attr != nil {
+			var tmp [2]byte
+			copy(tmp[:], b[2:4])
+			l := fp.off + roundup(4+fp.attr.Len())
+			binary.BigEndian.PutUint16(b[2:4], uint16(l))
+			h.Reset()
+			h.Write(b[:controlHeaderLen+fp.off])
+			mac := h.Sum(nil)
+			copy(b[2:4], tmp[:])
+			if i == 0 && !bytes.Equal(mac, fp.attr.(MessageIntegrity)) {
+				return &AttributeError{Type: attrMESSAGE_INTEGRITY, Err: errHMACFingerprintMismatch}
+			}
+			if i == 1 && !bytes.Equal(mac, fp.attr.(MessageIntegritySHA256)) {
+				return &AttributeError{Type: attrMESSAGE_INTEGRITY_SHA256, Err: errHMACFingerprintMismatch}
+			}
 		}
-	}
-	if fps[2].attr != nil {
-		if crc := Fingerprint(crc32.ChecksumIEEE(b[:controlHeaderLen+fps[2].off]) ^ crc32XOR); crc != fps[2].attr.(Fingerprint) {
-			return &AttributeError{Type: attrFINGERPRINT, Err: errCRC32FingerprintMismatch}
+		if i == 2 && fp.attr != nil {
+			if crc := Fingerprint(crc32.ChecksumIEEE(b[:controlHeaderLen+fp.off]) ^ crc32XOR); crc != fp.attr.(Fingerprint) {
+				return &AttributeError{Type: attrFINGERPRINT, Err: errCRC32FingerprintMismatch}
+			}
 		}
 	}
 	return nil

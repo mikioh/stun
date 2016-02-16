@@ -5,5 +5,9 @@
 package stun
 
 const (
-	attrORIGIN = 0x802F
+	attrMESSAGE_INTEGRITY_SHA256 = 0x002B // TODO: replace with value assigned by IANA
+	attrPASSWORD_ALGORITHM       = 0x002C // TODO: replace with value assigned by IANA
+	attrORIGIN                   = 0x802F
+	attrPASSWORD_ALGORITHMS      = 0x8030 // TODO: replace with value assigned by IANA
+	attrALTERNATE_DOMAIN         = 0x8031 // TODO: replace with value assigned by IANA
 )

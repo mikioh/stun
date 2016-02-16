@@ -16,7 +16,7 @@ ICE is defined in RFC 5245.
 Explicit Congestion Notification (ECN) for RTP over UDP is defined in RFC 6679.
 An Origin Attribute for the STUN Protocol is defined in https://tools.ietf.org/html/draft-ietf-tram-stun-origin.
 
-Also see https://tools.ietf.org/html/draft-ietf-tram-turnbis.
+Also see https://tools.ietf.org/html/draft-ietf-tram-stunbis and https://tools.ietf.org/html/draft-ietf-tram-turnbis.
 
 Note: THIRD-PARTY-AUTHORIZATION and ACCESS-TOKEN attributes defined in
 RFC 7635 are not implemented yet and you can use DefaultAttr for those

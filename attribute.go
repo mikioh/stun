@@ -35,7 +35,7 @@ type Attribute interface {
 }
 
 type fingerprint struct {
-	attr Attribute // fingerprint attribute
+	attr Attribute // HMAC or CRC-32 fingerprint attribute
 	off  int       // offset in a message
 }
 
@@ -50,6 +50,11 @@ func marshalAttrs(b []byte, m *Control) ([]fingerprint, error) {
 			if fps[0].attr == nil {
 				fps[0].attr = attr
 				fps[0].off = off
+			}
+		case attrMESSAGE_INTEGRITY_SHA256:
+			if fps[1].attr == nil {
+				fps[1].attr = attr
+				fps[1].off = off
 			}
 		case attrFINGERPRINT:
 			if fps[2].attr == nil {
@@ -73,6 +78,8 @@ func attrTypeMarshaler(attr Attribute) (int, func([]byte, int, Attribute, []byte
 		return attrUSERNAME, marshalStringAttr
 	case MessageIntegrity:
 		return attrMESSAGE_INTEGRITY, marshalBytesAttr
+	case MessageIntegritySHA256:
+		return attrMESSAGE_INTEGRITY_SHA256, marshalBytesAttr
 	case *Error:
 		return attrERROR_CODE, marshalErrorAttr
 	case UnknownAttrs:
@@ -121,10 +128,16 @@ func attrTypeMarshaler(attr Attribute) (int, func([]byte, int, Attribute, []byte
 		return attrICE_CONTROLLING, marshalUint64Attr
 	case *ECNCheck:
 		return attrECN_CHECK_STUN, marshalECNCheckAttr
-	case Origin:
-		return attrORIGIN, marshalStringAttr
+	case PasswordAlgorithms:
+		return attrPASSWORD_ALGORITHMS, marshalPasswordAlgosAttr
+	case *PasswordAlgorithm:
+		return attrPASSWORD_ALGORITHM, marshalPasswordAlgoAttr
+	case AlternateDomain:
+		return attrALTERNATE_DOMAIN, marshalStringAttr
 	case *DefaultAttr:
 		return attr.Type, marshalDefaultAttr
+	case Origin:
+		return attrORIGIN, marshalStringAttr
 	default:
 		panic(fmt.Sprintf("unknown attribute: %T", attr))
 	}
@@ -149,6 +162,8 @@ func marshalStringAttr(b []byte, t int, attr Attribute, _ []byte) error {
 		copy(b[4:], attr.(Nonce))
 	case attrSOFTWARE:
 		copy(b[4:], attr.(Software))
+	case attrALTERNATE_DOMAIN:
+		copy(b[4:], attr.(AlternateDomain))
 	case attrORIGIN:
 		copy(b[4:], attr.(Origin))
 	default:
@@ -165,6 +180,8 @@ func marshalBytesAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	switch t {
 	case attrMESSAGE_INTEGRITY:
 		copy(b[4:], attr.(MessageIntegrity))
+	case attrMESSAGE_INTEGRITY_SHA256:
+		copy(b[4:], attr.(MessageIntegritySHA256))
 	case attrDATA:
 		copy(b[4:], attr.(Data))
 	case attrRESERVATION_TOKEN:
@@ -259,6 +276,11 @@ func parseAttrs(b, tid []byte) ([]Attribute, []fingerprint, error) {
 					fps[0].attr = attr
 					fps[0].off = off
 				}
+			case attrMESSAGE_INTEGRITY_SHA256:
+				if fps[1].attr == nil {
+					fps[1].attr = attr
+					fps[1].off = off
+				}
 			case attrFINGERPRINT:
 				if fps[2].attr == nil {
 					fps[2].attr = attr
@@ -294,6 +316,7 @@ type parser struct {
 var parsers = map[int]parser{
 	attrUSERNAME:                 {parseStringAttr, 0, 512},
 	attrMESSAGE_INTEGRITY:        {parseBytesAttr, 20, 20},
+	attrMESSAGE_INTEGRITY_SHA256: {parseBytesAttr, 32, 32},
 	attrERROR_CODE:               {parseErrorAttr, 4, 4 + 763},
 	attrUNKNOWN_ATTRIBUTES:       {parseUnknownAttrs, 0, 65535},
 	attrCHANNEL_NUMBER:           {parseChannelNumberAttr, 4, 4},
@@ -318,6 +341,9 @@ var parsers = map[int]parser{
 	attrICE_CONTROLLED:           {parseUint64Attr, 8, 8},
 	attrICE_CONTROLLING:          {parseUint64Attr, 8, 8},
 	attrECN_CHECK_STUN:           {parseECNCheckAttr, 4, 4},
+	attrPASSWORD_ALGORITHMS:      {parsePasswordAlgosAttr, 0, 65535},
+	attrPASSWORD_ALGORITHM:       {parsePasswordAlgoAttr, 4, 65535},
+	attrALTERNATE_DOMAIN:         {parseStringAttr, 0, 763},
 	attrORIGIN:                   {parseStringAttr, 0, 65535},
 }
 
@@ -335,6 +361,8 @@ func parseStringAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, err
 		return Realm(v), nil
 	case attrNONCE:
 		return Nonce(v), nil
+	case attrALTERNATE_DOMAIN:
+		return AlternateDomain(v), nil
 	case attrORIGIN:
 		return Origin(v), nil
 	default:
@@ -349,6 +377,10 @@ func parseBytesAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, erro
 	switch t {
 	case attrMESSAGE_INTEGRITY:
 		v := make(MessageIntegrity, l)
+		copy(v, b)
+		return v, nil
+	case attrMESSAGE_INTEGRITY_SHA256:
+		v := make(MessageIntegritySHA256, l)
 		copy(v, b)
 		return v, nil
 	case attrDATA:
