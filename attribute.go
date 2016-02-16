@@ -134,10 +134,10 @@ func attrTypeMarshaler(attr Attribute) (int, func([]byte, int, Attribute, []byte
 		return attrPASSWORD_ALGORITHM, marshalPasswordAlgoAttr
 	case AlternateDomain:
 		return attrALTERNATE_DOMAIN, marshalStringAttr
-	case *DefaultAttr:
-		return attr.Type, marshalDefaultAttr
 	case Origin:
 		return attrORIGIN, marshalStringAttr
+	case *DefaultAttr:
+		return attr.Type, marshalDefaultAttr
 	default:
 		panic(fmt.Sprintf("unknown attribute: %T", attr))
 	}
