@@ -60,7 +60,11 @@ func parsePasswordAlgosAttr(b []byte, min, max int, _ []byte, _, l int) (Attribu
 		pa.Params = make([]byte, ll)
 		copy(pa.Params, b[4:])
 		pas = append(pas, pa)
-		b = b[roundup(4+ll):]
+		rl := roundup(4 + ll)
+		if rl > len(b) {
+			return nil, errInvalidAttribute
+		}
+		b = b[rl:]
 	}
 	return pas, nil
 }

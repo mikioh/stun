@@ -65,7 +65,7 @@ func TestParseFuzzHeader(t *testing.T) {
 	}
 }
 
-func TestParseFuzzMessage(t *testing.T) {
+func TestParseRandomFuzzMessage(t *testing.T) {
 	defer func() {
 		if p := recover(); p != nil {
 			t.Fatalf("panicked: %v", p)
@@ -78,6 +78,24 @@ func TestParseFuzzMessage(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, _, err := stun.ParseMessage(b, nil); err != nil {
+			fmt.Fprintf(ioutil.Discard, "%v", err)
+		}
+	}
+}
+
+var parseGoFuzzMessageTests = [][]byte{
+	[]byte("00\x00\x100000000000000000\x800\x00\x04000000000000"),
+}
+
+func TestParseGoFuzzMessage(t *testing.T) {
+	defer func() {
+		if p := recover(); p != nil {
+			t.Fatalf("panicked: %v", p)
+		}
+	}()
+
+	for _, tt := range parseGoFuzzMessageTests {
+		if _, _, err := stun.ParseMessage(tt, nil); err != nil {
 			fmt.Fprintf(ioutil.Discard, "%v", err)
 		}
 	}
