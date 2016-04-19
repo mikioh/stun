@@ -6,7 +6,7 @@ package stun
 
 // A DefaultAttr reprensents the default STUN attribute.
 // DefaultAttr is used for marshaling and parsing STUN attributes not
-// supported in the pacakge.
+// supported in the package.
 type DefaultAttr struct {
 	// Type specifies the attribute type.
 	Type int
