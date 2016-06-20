@@ -76,6 +76,8 @@ func attrTypeMarshaler(attr Attribute) (int, func([]byte, int, Attribute, []byte
 	switch attr := attr.(type) {
 	case Username:
 		return attrUSERNAME, marshalStringAttr
+	case Userhash:
+		return attrUSERHASH, marshalBytesAttr
 	case MessageIntegrity:
 		return attrMESSAGE_INTEGRITY, marshalBytesAttr
 	case MessageIntegritySHA256:
@@ -178,6 +180,8 @@ func marshalBytesAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	}
 	marshalAttrTypeLen(b, t, attr.Len())
 	switch t {
+	case attrUSERHASH:
+		copy(b[4:], attr.(Userhash))
 	case attrMESSAGE_INTEGRITY:
 		copy(b[4:], attr.(MessageIntegrity))
 	case attrMESSAGE_INTEGRITY_SHA256:
@@ -315,6 +319,7 @@ type parser struct {
 
 var parsers = map[int]parser{
 	attrUSERNAME:                 {parseStringAttr, 0, 512},
+	attrUSERHASH:                 {parseBytesAttr, 32, 32},
 	attrMESSAGE_INTEGRITY:        {parseBytesAttr, 20, 20},
 	attrMESSAGE_INTEGRITY_SHA256: {parseBytesAttr, 32, 32},
 	attrERROR_CODE:               {parseErrorAttr, 4, 4 + 763},
@@ -375,6 +380,10 @@ func parseBytesAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, erro
 		return nil, errAttributeTooShort
 	}
 	switch t {
+	case attrUSERHASH:
+		v := make(Userhash, l)
+		copy(v, b)
+		return v, nil
 	case attrMESSAGE_INTEGRITY:
 		v := make(MessageIntegrity, l)
 		copy(v, b)

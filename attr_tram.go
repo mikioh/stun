@@ -9,6 +9,14 @@ import (
 	"encoding/binary"
 )
 
+// A Userhash represents a STUN USERHASH attribute.
+type Userhash []byte
+
+// Len implements the Len method of Attribute interface.
+func (h Userhash) Len() int {
+	return len(h)
+}
+
 // A MessageIntegritySHA256 represents a STUN MESSAGE-INTEGRITY-SHA256
 // attribute.
 // If MessageIntegrity is nil, Marshal method of Message interface
