@@ -161,19 +161,8 @@ func (m *Control) Len() int {
 // Marshal implements the Marshal method of Message interface.
 func (m *Control) Marshal(b []byte, h hash.Hash) (int, error) {
 	l := 0
-	var username, realm Attribute
 	for _, attr := range m.Attrs {
-		switch attr.(type) {
-		case Username:
-			username = attr
-		case Realm:
-			realm = attr
-		}
 		l += roundup(4 + attr.Len())
-	}
-	if username != nil && realm != nil {
-		l += roundup(4 + 32)
-		l -= username.Len()
 	}
 	ll := controlHeaderLen + l
 	if len(b) < ll {
