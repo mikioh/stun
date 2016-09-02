@@ -3,7 +3,7 @@
 
 package stun
 
-// Session Traversal Utilities for NAT (STUN) Parameters, STUN Methods, Updated: 2016-04-20
+// Session Traversal Utilities for NAT (STUN) Parameters, STUN Methods, Updated: 2016-08-25
 const (
 	MethodBinding           Method = 0x001 // Binding
 	MethodAllocate          Method = 0x003 // Allocate
@@ -30,49 +30,50 @@ var methods = map[Method]string{
 	0x00C: "connection attempt",
 }
 
-// Session Traversal Utilities for NAT (STUN) Parameters, STUN Attributes, Updated: 2016-04-20
+// Session Traversal Utilities for NAT (STUN) Parameters, STUN Attributes, Updated: 2016-08-25
 const (
-	attrMAPPED_ADDRESS            = 0x0001 // MAPPED-ADDRESS
-	attrCHANGE_REQUEST            = 0x0003 // CHANGE-REQUEST
-	attrUSERNAME                  = 0x0006 // USERNAME
-	attrMESSAGE_INTEGRITY         = 0x0008 // MESSAGE-INTEGRITY
-	attrERROR_CODE                = 0x0009 // ERROR-CODE
-	attrUNKNOWN_ATTRIBUTES        = 0x000A // UNKNOWN-ATTRIBUTES
-	attrCHANNEL_NUMBER            = 0x000C // CHANNEL-NUMBER
-	attrLIFETIME                  = 0x000D // LIFETIME
-	attrXOR_PEER_ADDRESS          = 0x0012 // XOR-PEER-ADDRESS
-	attrDATA                      = 0x0013 // DATA
-	attrREALM                     = 0x0014 // REALM
-	attrNONCE                     = 0x0015 // NONCE
-	attrXOR_RELAYED_ADDRESS       = 0x0016 // XOR-RELAYED-ADDRESS
-	attrREQUESTED_ADDRESS_FAMILY  = 0x0017 // REQUESTED-ADDRESS-FAMILY
-	attrEVEN_PORT                 = 0x0018 // EVEN-PORT
-	attrREQUESTED_TRANSPORT       = 0x0019 // REQUESTED-TRANSPORT
-	attrDONT_FRAGMENT             = 0x001A // DONT-FRAGMENT
-	attrACCESS_TOKEN              = 0x001B // ACCESS-TOKEN
-	attrXOR_MAPPED_ADDRESS        = 0x0020 // XOR-MAPPED-ADDRESS
-	attrRESERVATION_TOKEN         = 0x0022 // RESERVATION-TOKEN
-	attrPRIORITY                  = 0x0024 // PRIORITY
-	attrUSE_CANDIDATE             = 0x0025 // USE-CANDIDATE
-	attrPADDING                   = 0x0026 // PADDING
-	attrRESPONSE_PORT             = 0x0027 // RESPONSE-PORT
-	attrCONNECTION_ID             = 0x002A // CONNECTION-ID
-	attrSOFTWARE                  = 0x8022 // SOFTWARE
-	attrALTERNATE_SERVER          = 0x8023 // ALTERNATE-SERVER
-	attrCACHE_TIMEOUT             = 0x8027 // CACHE-TIMEOUT
-	attrFINGERPRINT               = 0x8028 // FINGERPRINT
-	attrICE_CONTROLLED            = 0x8029 // ICE-CONTROLLED
-	attrICE_CONTROLLING           = 0x802A // ICE-CONTROLLING
-	attrRESPONSE_ORIGIN           = 0x802B // RESPONSE-ORIGIN
-	attrOTHER_ADDRESS             = 0x802C // OTHER-ADDRESS
-	attrECN_CHECK_STUN            = 0x802D // ECN-CHECK STUN
-	attrTHIRD_PARTY_AUTHORIZATION = 0x802E // THIRD-PARTY-AUTHORIZATION
-	attrCISCO_STUN_FLOWDATA       = 0xC000 // CISCO-STUN-FLOWDATA
-	attrENF_FLOW_DESCRIPTION      = 0xC001 // ENF-FLOW-DESCRIPTION
-	attrENF_NETWORK_STATUS        = 0xC002 // ENF-NETWORK-STATUS
+	attrMAPPED_ADDRESS               = 0x0001 // MAPPED-ADDRESS
+	attrCHANGE_REQUEST               = 0x0003 // CHANGE-REQUEST
+	attrUSERNAME                     = 0x0006 // USERNAME
+	attrMESSAGE_INTEGRITY            = 0x0008 // MESSAGE-INTEGRITY
+	attrERROR_CODE                   = 0x0009 // ERROR-CODE
+	attrUNKNOWN_ATTRIBUTES           = 0x000A // UNKNOWN-ATTRIBUTES
+	attrCHANNEL_NUMBER               = 0x000C // CHANNEL-NUMBER
+	attrLIFETIME                     = 0x000D // LIFETIME
+	attrXOR_PEER_ADDRESS             = 0x0012 // XOR-PEER-ADDRESS
+	attrDATA                         = 0x0013 // DATA
+	attrREALM                        = 0x0014 // REALM
+	attrNONCE                        = 0x0015 // NONCE
+	attrXOR_RELAYED_ADDRESS          = 0x0016 // XOR-RELAYED-ADDRESS
+	attrREQUESTED_ADDRESS_FAMILY     = 0x0017 // REQUESTED-ADDRESS-FAMILY
+	attrEVEN_PORT                    = 0x0018 // EVEN-PORT
+	attrREQUESTED_TRANSPORT          = 0x0019 // REQUESTED-TRANSPORT
+	attrDONT_FRAGMENT                = 0x001A // DONT-FRAGMENT
+	attrACCESS_TOKEN                 = 0x001B // ACCESS-TOKEN
+	attrXOR_MAPPED_ADDRESS           = 0x0020 // XOR-MAPPED-ADDRESS
+	attrRESERVATION_TOKEN            = 0x0022 // RESERVATION-TOKEN
+	attrPRIORITY                     = 0x0024 // PRIORITY
+	attrUSE_CANDIDATE                = 0x0025 // USE-CANDIDATE
+	attrPADDING                      = 0x0026 // PADDING
+	attrRESPONSE_PORT                = 0x0027 // RESPONSE-PORT
+	attrCONNECTION_ID                = 0x002A // CONNECTION-ID
+	attrSOFTWARE                     = 0x8022 // SOFTWARE
+	attrALTERNATE_SERVER             = 0x8023 // ALTERNATE-SERVER
+	attrTRANSACTION_TRANSMIT_COUNTER = 0x8025 // TRANSACTION_TRANSMIT_COUNTER
+	attrCACHE_TIMEOUT                = 0x8027 // CACHE-TIMEOUT
+	attrFINGERPRINT                  = 0x8028 // FINGERPRINT
+	attrICE_CONTROLLED               = 0x8029 // ICE-CONTROLLED
+	attrICE_CONTROLLING              = 0x802A // ICE-CONTROLLING
+	attrRESPONSE_ORIGIN              = 0x802B // RESPONSE-ORIGIN
+	attrOTHER_ADDRESS                = 0x802C // OTHER-ADDRESS
+	attrECN_CHECK_STUN               = 0x802D // ECN-CHECK STUN
+	attrTHIRD_PARTY_AUTHORIZATION    = 0x802E // THIRD-PARTY-AUTHORIZATION
+	attrCISCO_STUN_FLOWDATA          = 0xC000 // CISCO-STUN-FLOWDATA
+	attrENF_FLOW_DESCRIPTION         = 0xC001 // ENF-FLOW-DESCRIPTION
+	attrENF_NETWORK_STATUS           = 0xC002 // ENF-NETWORK-STATUS
 )
 
-// Session Traversal Utilities for NAT (STUN) Parameters, STUN Error Codes, Updated: 2016-04-20
+// Session Traversal Utilities for NAT (STUN) Parameters, STUN Error Codes, Updated: 2016-08-25
 const (
 	StatusTryAlternate                 = 300 // Try Alternate
 	StatusBadRequest                   = 400 // Bad Request
