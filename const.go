@@ -3,7 +3,7 @@
 
 package stun
 
-// Session Traversal Utilities for NAT (STUN) Parameters, STUN Methods, Updated: 2016-08-25
+// Session Traversal Utilities for NAT (STUN) Parameters, STUN Methods, Updated: 2016-09-30
 const (
 	MethodBinding           Method = 0x001 // Binding
 	MethodAllocate          Method = 0x003 // Allocate
@@ -30,7 +30,7 @@ var methods = map[Method]string{
 	0x00C: "connection attempt",
 }
 
-// Session Traversal Utilities for NAT (STUN) Parameters, STUN Attributes, Updated: 2016-08-25
+// Session Traversal Utilities for NAT (STUN) Parameters, STUN Attributes, Updated: 2016-09-30
 const (
 	attrMAPPED_ADDRESS               = 0x0001 // MAPPED-ADDRESS
 	attrCHANGE_REQUEST               = 0x0003 // CHANGE-REQUEST
@@ -68,17 +68,19 @@ const (
 	attrOTHER_ADDRESS                = 0x802C // OTHER-ADDRESS
 	attrECN_CHECK_STUN               = 0x802D // ECN-CHECK STUN
 	attrTHIRD_PARTY_AUTHORIZATION    = 0x802E // THIRD-PARTY-AUTHORIZATION
+	attrMOBILITY_TICKET              = 0x8030 // MOBILITY-TICKET
 	attrCISCO_STUN_FLOWDATA          = 0xC000 // CISCO-STUN-FLOWDATA
 	attrENF_FLOW_DESCRIPTION         = 0xC001 // ENF-FLOW-DESCRIPTION
 	attrENF_NETWORK_STATUS           = 0xC002 // ENF-NETWORK-STATUS
 )
 
-// Session Traversal Utilities for NAT (STUN) Parameters, STUN Error Codes, Updated: 2016-08-25
+// Session Traversal Utilities for NAT (STUN) Parameters, STUN Error Codes, Updated: 2016-09-30
 const (
 	StatusTryAlternate                 = 300 // Try Alternate
 	StatusBadRequest                   = 400 // Bad Request
 	StatusUnauthorized                 = 401 // Unauthorized
 	StatusForbidden                    = 403 // Forbidden
+	StatusMobilityForbidden            = 405 // Mobility Forbidden
 	StatusUnknownAttribute             = 420 // Unknown Attribute
 	StatusAllocationMismatch           = 437 // Allocation Mismatch
 	StatusStaleNonce                   = 438 // Stale Nonce
