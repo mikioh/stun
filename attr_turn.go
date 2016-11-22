@@ -6,6 +6,7 @@ package stun
 
 import (
 	"encoding/binary"
+	"errors"
 	"time"
 )
 
@@ -24,7 +25,7 @@ func (cn *ChannelNumber) Len() int {
 
 func marshalChannelNumberAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+4 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 4)
 	binary.BigEndian.PutUint16(b[4:6], uint16(attr.(*ChannelNumber).Number))
@@ -33,7 +34,7 @@ func marshalChannelNumberAttr(b []byte, t int, attr Attribute, _ []byte) error {
 
 func parseChannelNumberAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	return &ChannelNumber{Number: Type(binary.BigEndian.Uint16(b[:2]))}, nil
 }
@@ -72,7 +73,7 @@ func (af *RequestedAddrFamily) Len() int {
 
 func marshalRequestedAddrFamilyAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+4 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 4)
 	b[4] = byte(attr.(*RequestedAddrFamily).ID)
@@ -81,7 +82,7 @@ func marshalRequestedAddrFamilyAttr(b []byte, t int, attr Attribute, _ []byte) e
 
 func parseRequestedAddrFamilyAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	return &RequestedAddrFamily{ID: int(b[0])}, nil
 }
@@ -101,7 +102,7 @@ func (ep *EvenPort) Len() int {
 
 func marshalEvenPortAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+1 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 1)
 	if attr.(*EvenPort).R {
@@ -112,7 +113,7 @@ func marshalEvenPortAttr(b []byte, t int, attr Attribute, _ []byte) error {
 
 func parseEvenPortAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	var ep EvenPort
 	if b[0]&0x80 != 0 {
@@ -137,7 +138,7 @@ func (rt *RequestedTransport) Len() int {
 
 func marshalRequestedTransportAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+4 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 4)
 	b[4] = byte(attr.(*RequestedTransport).Protocol)
@@ -146,7 +147,7 @@ func marshalRequestedTransportAttr(b []byte, t int, attr Attribute, _ []byte) er
 
 func parseRequestedTransportAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	return &RequestedTransport{Protocol: int(b[0])}, nil
 }
@@ -161,7 +162,7 @@ func (_ *DontFragment) Len() int {
 
 func marshalDontFragmentAttr(b []byte, t int, _ Attribute, _ []byte) error {
 	if len(b) < 4 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 0)
 	return nil

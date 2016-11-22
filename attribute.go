@@ -6,6 +6,7 @@ package stun
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -150,7 +151,7 @@ func marshalAttrTypeLen(b []byte, t, l int) {
 
 func marshalStringAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+attr.Len() {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, attr.Len())
 	switch t {
@@ -167,14 +168,14 @@ func marshalStringAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	case attrORIGIN:
 		copy(b[4:], attr.(Origin))
 	default:
-		return errInvalidAttribute
+		return errors.New("invalid attribute")
 	}
 	return nil
 }
 
 func marshalBytesAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+attr.Len() {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, attr.Len())
 	switch t {
@@ -187,14 +188,14 @@ func marshalBytesAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	case attrRESERVATION_TOKEN:
 		copy(b[4:], attr.(ReservationToken))
 	default:
-		return errInvalidAttribute
+		return errors.New("invalid attribute")
 	}
 	return nil
 }
 
 func marshalUintAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+4 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 4)
 	var v uint
@@ -206,7 +207,7 @@ func marshalUintAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	case attrFINGERPRINT:
 		v = uint(attr.(Fingerprint))
 	default:
-		return errInvalidAttribute
+		return errors.New("invalid attribute")
 	}
 	binary.BigEndian.PutUint32(b[4:8], uint32(v))
 	return nil
@@ -214,7 +215,7 @@ func marshalUintAttr(b []byte, t int, attr Attribute, _ []byte) error {
 
 func marshalUint64Attr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+8 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 8)
 	var v uint64
@@ -224,7 +225,7 @@ func marshalUint64Attr(b []byte, t int, attr Attribute, _ []byte) error {
 	case attrICE_CONTROLLING:
 		v = uint64(attr.(ICEControlling))
 	default:
-		return errInvalidAttribute
+		return errors.New("invalid attribute")
 	}
 	binary.BigEndian.PutUint64(b[4:12], v)
 	return nil
@@ -232,7 +233,7 @@ func marshalUint64Attr(b []byte, t int, attr Attribute, _ []byte) error {
 
 func marshalDurationAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+4 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 4)
 	switch t {
@@ -240,7 +241,7 @@ func marshalDurationAttr(b []byte, t int, attr Attribute, _ []byte) error {
 		v := uint32(time.Duration(attr.(Lifetime)).Seconds())
 		binary.BigEndian.PutUint32(b[4:8], uint32(v))
 	default:
-		return errInvalidAttribute
+		return errors.New("invalid attribute")
 	}
 	return nil
 }
@@ -296,13 +297,13 @@ func parseAttrs(b, tid []byte) ([]Attribute, []fingerprint, error) {
 
 func parseAttrTypeLen(b []byte) (t, l, ll int, err error) {
 	if len(b) < 4 {
-		return 0, 0, 0, errInvalidHeader
+		return 0, 0, 0, errors.New("invalid header")
 	}
 	t = int(binary.BigEndian.Uint16(b[:2]))
 	l = int(binary.BigEndian.Uint16(b[2:4]))
 	ll = roundup(4 + l)
 	if len(b) < ll {
-		return t, l, ll, errAttributeTooShort
+		return t, l, ll, errors.New("short attribute")
 	}
 	return t, l, ll, nil
 }
@@ -349,7 +350,7 @@ var parsers = map[int]parser{
 
 func parseStringAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	v := string(b[:l])
 	switch t {
@@ -366,13 +367,13 @@ func parseStringAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, err
 	case attrORIGIN:
 		return Origin(v), nil
 	default:
-		return nil, errInvalidAttribute
+		return nil, errors.New("invalid attribute")
 	}
 }
 
 func parseBytesAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	switch t {
 	case attrMESSAGE_INTEGRITY:
@@ -390,13 +391,13 @@ func parseBytesAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, erro
 		copy(v, b)
 		return v, nil
 	default:
-		return nil, errInvalidAttribute
+		return nil, errors.New("invalid attribute")
 	}
 }
 
 func parseUintAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	v := binary.BigEndian.Uint32(b[:4])
 	switch t {
@@ -407,13 +408,13 @@ func parseUintAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, error
 	case attrFINGERPRINT:
 		return Fingerprint(v), nil
 	default:
-		return nil, errInvalidAttribute
+		return nil, errors.New("invalid attribute")
 	}
 }
 
 func parseUint64Attr(b []byte, min, max int, _ []byte, t, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	v := binary.BigEndian.Uint64(b[:8])
 	switch t {
@@ -422,19 +423,19 @@ func parseUint64Attr(b []byte, min, max int, _ []byte, t, l int) (Attribute, err
 	case attrICE_CONTROLLING:
 		return ICEControlling(v), nil
 	default:
-		return nil, errInvalidAttribute
+		return nil, errors.New("invalid attribute")
 	}
 }
 
 func parseDurationAttr(b []byte, min, max int, _ []byte, t, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	v := time.Duration(binary.BigEndian.Uint32(b[:4])) * time.Second
 	switch t {
 	case attrLIFETIME:
 		return Lifetime(v), nil
 	default:
-		return nil, errInvalidAttribute
+		return nil, errors.New("invalid attribute")
 	}
 }

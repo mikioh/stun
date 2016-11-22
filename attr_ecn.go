@@ -4,6 +4,8 @@
 
 package stun
 
+import "errors"
+
 // A ECNCheck represents a STUN ECN-CHECK attribute.
 type ECNCheck struct {
 	ECF int  // ECN echo value field
@@ -20,7 +22,7 @@ func (ec *ECNCheck) Len() int {
 
 func marshalECNCheckAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+4 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 4)
 	b[7] = byte(attr.(*ECNCheck).ECF & 0x03 << 1)
@@ -32,7 +34,7 @@ func marshalECNCheckAttr(b []byte, t int, attr Attribute, _ []byte) error {
 
 func parseECNCheckAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	ec := ECNCheck{ECF: int(b[3]) >> 1 & 0x03}
 	if b[3]&0x01 != 0 {

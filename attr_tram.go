@@ -7,6 +7,7 @@ package stun
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 )
 
 // A MessageIntegritySHA256 represents a STUN MESSAGE-INTEGRITY-SHA256
@@ -36,7 +37,7 @@ func (pas PasswordAlgorithms) Len() int {
 func marshalPasswordAlgosAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	l := attr.Len()
 	if len(b) < l {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, l)
 	b = b[4:]
@@ -51,7 +52,7 @@ func marshalPasswordAlgosAttr(b []byte, t int, attr Attribute, _ []byte) error {
 
 func parsePasswordAlgosAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	var pas PasswordAlgorithms
 	for len(b) >= 4 {
@@ -62,7 +63,7 @@ func parsePasswordAlgosAttr(b []byte, min, max int, _ []byte, _, l int) (Attribu
 		pas = append(pas, pa)
 		rl := roundup(4 + ll)
 		if rl > len(b) {
-			return nil, errInvalidAttribute
+			return nil, errors.New("invalid attribute")
 		}
 		b = b[rl:]
 	}
@@ -86,7 +87,7 @@ func (pa *PasswordAlgorithm) Len() int {
 func marshalPasswordAlgoAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	l := attr.Len()
 	if len(b) < l {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, l)
 	if pa, ok := attr.(*PasswordAlgorithm); ok && pa != nil {
@@ -99,7 +100,7 @@ func marshalPasswordAlgoAttr(b []byte, t int, attr Attribute, _ []byte) error {
 
 func parsePasswordAlgoAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	pa := PasswordAlgorithm{Number: int(binary.BigEndian.Uint16(b[:2]))}
 	pa.Params = make([]byte, int(binary.BigEndian.Uint16(b[2:4])))

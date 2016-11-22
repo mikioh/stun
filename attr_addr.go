@@ -6,6 +6,7 @@ package stun
 
 import (
 	"encoding/binary"
+	"errors"
 	"net"
 )
 
@@ -54,7 +55,7 @@ func addrAttrLen(ip net.IP) int {
 
 func marshalAddrAttr(b []byte, t int, attr Attribute, tid []byte) error {
 	if len(b) < 4+attr.Len() {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	var port int
 	var ip net.IP
@@ -104,7 +105,7 @@ func marshalAddrAttr(b []byte, t int, attr Attribute, tid []byte) error {
 
 func parseAddrAttr(b []byte, _, _ int, tid []byte, t, l int) (Attribute, error) {
 	if l-4 != net.IPv4len && l-4 != net.IPv6len {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	switch t {
 	case attrXOR_PEER_ADDRESS:
@@ -127,7 +128,7 @@ func parseAddrAttr(b []byte, _, _ int, tid []byte, t, l int) (Attribute, error) 
 		copy(as.IP, net.IP(b[4:l]).To16())
 		return &as, nil
 	default:
-		return nil, errInvalidAttribute
+		return nil, errors.New("invalid attribute")
 	}
 }
 

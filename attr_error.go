@@ -4,7 +4,10 @@
 
 package stun
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"errors"
+)
 
 // An Error represents a STUN ERROR-CODE attribute.
 type Error struct {
@@ -38,7 +41,7 @@ func (e *Error) Number() int {
 
 func marshalErrorAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+attr.Len() {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, attr.Len())
 	b[6], b[7] = byte(attr.(*Error).Class()), byte(attr.(*Error).Number())
@@ -48,7 +51,7 @@ func marshalErrorAttr(b []byte, t int, attr Attribute, _ []byte) error {
 
 func parseErrorAttr(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	e := Error{Code: int(b[2]&0x07)*100 + int(b[3])}
 	e.Reason = string(b[4:l])
@@ -68,13 +71,13 @@ func (ua UnknownAttrs) Len() int {
 
 func marshalUnknownAttrs(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+attr.Len() {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, attr.Len())
 	b = b[4:]
 	for _, t := range attr.(UnknownAttrs) {
 		if len(b) < 2 {
-			return errBufferTooShort
+			return errors.New("short buffer")
 		}
 		binary.BigEndian.PutUint16(b[:2], uint16(t))
 		b = b[2:]
@@ -84,7 +87,7 @@ func marshalUnknownAttrs(b []byte, t int, attr Attribute, _ []byte) error {
 
 func parseUnknownAttrs(b []byte, min, max int, _ []byte, _, l int) (Attribute, error) {
 	if min > l || l > max || len(b) < l {
-		return nil, errAttributeTooShort
+		return nil, errors.New("short attribute")
 	}
 	ua := make(UnknownAttrs, 0, l/2)
 	for len(b) > 1 {

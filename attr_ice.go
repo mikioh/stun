@@ -4,6 +4,8 @@
 
 package stun
 
+import "errors"
+
 // A Priority represents a STUN PRIORITY attribute.
 type Priority uint
 
@@ -22,7 +24,7 @@ func (_ *UseCandidate) Len() int {
 
 func marshalUseCandidateAttr(b []byte, t int, _ Attribute, _ []byte) error {
 	if len(b) < 4 {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, 0)
 	return nil

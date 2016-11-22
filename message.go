@@ -15,17 +15,6 @@ import (
 	"io"
 )
 
-var (
-	errMessageTooShort          = errors.New("message too short")
-	errAttributeTooShort        = errors.New("attribute too short")
-	errBufferTooShort           = errors.New("buffer too short")
-	errInvalidMessage           = errors.New("invalid message")
-	errInvalidHeader            = errors.New("invalid header")
-	errInvalidAttribute         = errors.New("invalid attribute")
-	errHMACFingerprintMismatch  = errors.New("HMAC fingerprint mismatch")
-	errCRC32FingerprintMismatch = errors.New("CRC-32 fingerprint mismatch")
-)
-
 // A MessageError represents a STUN message error.
 type MessageError struct {
 	// Type is the STUN message type.
@@ -166,7 +155,7 @@ func (m *Control) Marshal(b []byte, h hash.Hash) (int, error) {
 	}
 	ll := controlHeaderLen + l
 	if len(b) < ll {
-		return 0, &MessageError{Type: m.Type, Err: errBufferTooShort}
+		return 0, &MessageError{Type: m.Type, Err: errors.New("short buffer")}
 	}
 	binary.BigEndian.PutUint16(b[:2], uint16(m.Type))
 	binary.BigEndian.PutUint16(b[2:4], uint16(l))
@@ -213,7 +202,7 @@ func (m *ChannelData) Marshal(b []byte, _ hash.Hash) (int, error) {
 	l := len(m.Data)
 	ll := channelDataHeaderLen + roundup(l)
 	if len(b) < ll {
-		return 0, &MessageError{Type: m.Number, Err: errBufferTooShort}
+		return 0, &MessageError{Type: m.Number, Err: errors.New("short buffer")}
 	}
 	binary.BigEndian.PutUint16(b[:2], uint16(m.Number))
 	binary.BigEndian.PutUint16(b[2:4], uint16(l))
@@ -227,7 +216,7 @@ func (m *ChannelData) Marshal(b []byte, _ hash.Hash) (int, error) {
 // bytes.
 func ParseHeader(b []byte) (Type, int, error) {
 	if len(b) < channelDataHeaderLen {
-		return 0, 0, &MessageError{Err: errMessageTooShort}
+		return 0, 0, &MessageError{Err: errors.New("short message")}
 	}
 	t := Type(binary.BigEndian.Uint16(b[:2]))
 	l := int(binary.BigEndian.Uint16(b[2:4]))
@@ -245,23 +234,23 @@ func ParseHeader(b []byte) (Type, int, error) {
 // message and sent over UDP.
 func ParseMessage(b []byte, h hash.Hash) (int, Message, error) {
 	if len(b) < channelDataHeaderLen {
-		return 0, nil, &MessageError{Err: errMessageTooShort}
+		return 0, nil, &MessageError{Err: errors.New("short message")}
 	}
 	t := Type(binary.BigEndian.Uint16(b[:2]))
 	l := int(binary.BigEndian.Uint16(b[2:4]))
 	if 0x4000 <= t && t <= 0x7fff {
 		ll := channelDataHeaderLen + roundup(l)
 		if len(b) < ll {
-			return 0, nil, &MessageError{Type: t, Err: errMessageTooShort}
+			return 0, nil, &MessageError{Type: t, Err: errors.New("short message")}
 		}
 		return ll, &ChannelData{Number: t, Data: b[channelDataHeaderLen : channelDataHeaderLen+l]}, nil
 	}
 	if b[0]&0xc0 != 0 {
-		return 0, nil, &MessageError{Type: t, Err: errInvalidHeader}
+		return 0, nil, &MessageError{Type: t, Err: errors.New("invalid header")}
 	}
 	ll := controlHeaderLen + l
 	if len(b) < ll {
-		return 0, nil, &MessageError{Type: t, Err: errBufferTooShort}
+		return 0, nil, &MessageError{Type: t, Err: errors.New("short buffer")}
 	}
 	cookieTID := make([]byte, 16)
 	copy(cookieTID[:4], b[4:8])
@@ -317,15 +306,15 @@ func validateIntegrity(b []byte, h hash.Hash, fps []fingerprint) error {
 			mac := h.Sum(nil)
 			copy(b[2:4], tmp[:])
 			if i == 0 && !bytes.Equal(mac, fp.attr.(MessageIntegrity)) {
-				return &AttributeError{Type: attrMESSAGE_INTEGRITY, Err: errHMACFingerprintMismatch}
+				return &AttributeError{Type: attrMESSAGE_INTEGRITY, Err: errors.New("HMAC fingerprint mismatch")}
 			}
 			if i == 1 && !bytes.Equal(mac, fp.attr.(MessageIntegritySHA256)) {
-				return &AttributeError{Type: attrMESSAGE_INTEGRITY_SHA256, Err: errHMACFingerprintMismatch}
+				return &AttributeError{Type: attrMESSAGE_INTEGRITY_SHA256, Err: errors.New("HMAC fingerprint mismatch")}
 			}
 		}
 		if i == 2 && fp.attr != nil {
 			if crc := Fingerprint(crc32.ChecksumIEEE(b[:controlHeaderLen+fp.off]) ^ crc32XOR); crc != fp.attr.(Fingerprint) {
-				return &AttributeError{Type: attrFINGERPRINT, Err: errCRC32FingerprintMismatch}
+				return &AttributeError{Type: attrFINGERPRINT, Err: errors.New("CRC-32 fingerprint mismatch")}
 			}
 		}
 	}

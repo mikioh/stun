@@ -4,6 +4,8 @@
 
 package stun
 
+import "errors"
+
 // A DefaultAttr reprensents the default STUN attribute.
 // DefaultAttr is used for marshaling and parsing STUN attributes not
 // supported in the package.
@@ -25,7 +27,7 @@ func (da *DefaultAttr) Len() int {
 
 func marshalDefaultAttr(b []byte, t int, attr Attribute, _ []byte) error {
 	if len(b) < 4+attr.Len() {
-		return errBufferTooShort
+		return errors.New("short buffer")
 	}
 	marshalAttrTypeLen(b, t, attr.Len())
 	copy(b[4:], attr.(*DefaultAttr).Data)
