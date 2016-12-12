@@ -2,4 +2,5 @@ Package stun provides basic functions for the manipulation of messages used in t
 
 [![GoDoc](https://godoc.org/github.com/mikioh/stun?status.png)](https://godoc.org/github.com/mikioh/stun)
 [![Build Status](https://travis-ci.org/mikioh/stun.svg?branch=master)](https://travis-ci.org/mikioh/stun)
+[![Build status](https://ci.appveyor.com/api/projects/status/air9t7aw9ugt4rcb?svg=true)](https://ci.appveyor.com/project/mikioh/stun)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mikioh/stun)](https://goreportcard.com/report/github.com/mikioh/stun)
